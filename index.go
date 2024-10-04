@@ -2,110 +2,83 @@ package main
 
 import (
 	"net/http"
-	"strconv" // Import thư viện strconv để sử dụng Atoi
 
 	"github.com/gin-gonic/gin"
+	"gorm.io/driver/mysql"
+	"gorm.io/gorm"
 )
 
 type Student struct {
-	ID    int    `json:"id"`
+	gorm.Model
 	Name  string `json:"name"`
 	Age   int    `json:"age"`
 	Email string `json:"email"`
 }
 
-var students = []Student{
-	{ID: 1, Name: "Nguyen Van A", Age: 20, Email: "nguyenvana@gmail.com"},
-	{ID: 2, Name: "Le Thi B", Age: 21, Email: "lethib@gmail.com"},
-	{ID: 3, Name: "Tran Van C", Age: 22, Email: "tranvanc@gmail.com"},
-}
-
-func getStudents(c *gin.Context) {
-	c.JSON(http.StatusOK, students)
-}
-
-func getStudentDetail(c *gin.Context) {
-	id, err := strconv.Atoi(c.Param("id"))
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "ID không hợp lệ"})
-		return
-	}
-
-	for _, student := range students {
-		if student.ID == id {
-			c.JSON(http.StatusOK, student)
-			return
-		}
-	}
-
-	c.JSON(http.StatusNotFound, gin.H{"error": "Sinh viên không tồn tại"})
-}
-
-func addStudent(c *gin.Context) {
-	var newStudent Student
-	if err := c.ShouldBindJSON(&newStudent); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-
-	newStudent.ID = len(students) + 1
-	students = append(students, newStudent)
-	c.JSON(http.StatusOK, newStudent)
-}
-
-func updateStudent(c *gin.Context) {
-	id, err := strconv.Atoi(c.Param("id"))
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "ID không hợp lệ"})
-		return
-	}
-
-	var updatedStudent Student
-	if err := c.ShouldBindJSON(&updatedStudent); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-
-	for i, student := range students {
-		if student.ID == id {
-			students[i].Name = updatedStudent.Name
-			students[i].Age = updatedStudent.Age
-			students[i].Email = updatedStudent.Email
-			c.JSON(http.StatusOK, students[i])
-			return
-		}
-	}
-
-	c.JSON(http.StatusNotFound, gin.H{"error": "Sinh viên không tồn tại"})
-}
-
-func deleteStudent(c *gin.Context) {
-	id, err := strconv.Atoi(c.Param("id"))
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "ID không hợp lệ"})
-		return
-	}
-
-	for i, student := range students {
-		if student.ID == id {
-			students = append(students[:i], students[i+1:]...)
-			c.JSON(http.StatusOK, gin.H{"message": "Sinh viên đã được xóa"})
-			return
-		}
-	}
-
-	c.JSON(http.StatusNotFound, gin.H{"error": "Sinh viên không tồn tại"})
-}
+var db *gorm.DB
 
 func main() {
 	r := gin.Default()
 
-	r.GET("/students", getStudents)
-	r.GET("/student-detail/:id", getStudentDetail)
-	r.POST("/student", addStudent)
-	r.PUT("/student/:id", updateStudent)
-	r.DELETE("/student/:id", deleteStudent)
+	// Kết nối tới MySQL
+	dsn := "root:passroot@tcp(127.0.0.1:3308)/student_management?parseTime=true&loc=Local"
+	var err error
+	db, err = gorm.Open(mysql.Open(dsn), &gorm.Config{})
+	if err != nil {
+		panic("failed to connect database")
+	}
+	db.AutoMigrate(&Student{})
+	r.LoadHTMLGlob("templates/*")
 
-	// Chạy server
-	r.Run(":8080") // Server sẽ chạy tại localhost:8080
+	r.GET("/", func(c *gin.Context) {
+		c.HTML(http.StatusOK, "index.html", nil)
+	})
+
+	r.GET("/students-data", func(c *gin.Context) {
+		var students []Student
+		db.Find(&students)
+		c.JSON(http.StatusOK, students)
+	})
+
+	// API thêm sinh viên
+	r.POST("/student", func(c *gin.Context) {
+		var student Student
+		if err := c.ShouldBindJSON(&student); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+		db.Create(&student)
+		c.JSON(http.StatusOK, student)
+	})
+
+	// API cập nhật sinh viên
+	r.PUT("/student/:id", func(c *gin.Context) {
+		var student Student
+		id := c.Param("id")
+		if err := db.First(&student, id).Error; err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Student not found"})
+			return
+		}
+
+		if err := c.ShouldBindJSON(&student); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+
+		db.Save(&student)
+		c.JSON(http.StatusOK, student)
+	})
+
+	// API xóa sinh viên
+	r.DELETE("/student/:id", func(c *gin.Context) {
+		id := c.Param("id")
+		if err := db.Delete(&Student{}, id).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete student"})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"message": "Student deleted"})
+	})
+
+	// Chạy server trên cổng 8080
+	r.Run(":8080")
 }

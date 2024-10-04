@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Student Management</title>
+    <style>
+        /* Thêm các kiểu CSS nếu cần */
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+        }
+        table, th, td {
+            border: 1px solid black;
+            border-collapse: collapse;
+            padding: 10px;
+        }
+        table {
+            width: 100%;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Student Management</h1>
+
+    <h2>Add Student</h2>
+    <form id="addStudentForm">
+        <input type="text" id="name" placeholder="Name" required>
+        <input type="number" id="age" placeholder="Age" required>
+        <input type="email" id="email" placeholder="Email" required>
+        <input type="submit" value="Add Student">
+    </form>
+
+    <h2>Update Student</h2>
+    <form id="updateStudentForm">
+        <input type="number" id="updateId" placeholder="Student ID" required>
+        <input type="text" id="updateName" placeholder="New Name" required>
+        <input type="number" id="updateAge" placeholder="New Age" required>
+        <input type="email" id="updateEmail" placeholder="New Email" required>
+        <input type="submit" value="Update Student">
+    </form>
+
+    <h2>Delete Student</h2>
+    <form id="deleteStudentForm">
+        <input type="number" id="deleteId" placeholder="Student ID" required>
+        <input type="submit" value="Delete Student">
+    </form>
+
+    <h2>Student List</h2>
+    <button onclick="fetchStudents()">Refresh List</button>
+    <table id="studentsTable">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Name</th>
+                <th>Age</th>
+                <th>Email</th>
+            </tr>
+        </thead>
+        <tbody>
+            <!-- Students will be populated here -->
+        </tbody>
+    </table>
+
+    <script>
+        // Fetch all students and display in the table
+        function fetchStudents() {
+            fetch('http://localhost:8080/students-data')
+                .then(response => response.json())
+                .then(data => {
+                    const tableBody = document.querySelector("#studentsTable tbody");
+                    tableBody.innerHTML = ''; // Clear previous rows
+                    data.forEach(student => {
+                        let row = `<tr>
+                            <td>${student.ID}</td>
+                            <td>${student.name}</td>
+                            <td>${student.age}</td>
+                            <td>${student.email}</td>
+                        </tr>`;
+                        tableBody.innerHTML += row;
+                    });
+                })
+                .catch(error => console.error('Error fetching students:', error));
+        }
+
+        // Add a new student
+        document.getElementById("addStudentForm").addEventListener("submit", function(event) {
+            event.preventDefault();
+            const name = document.getElementById("name").value;
+            const age = document.getElementById("age").value;
+            const email = document.getElementById("email").value;
+
+            fetch('http://localhost:8080/student', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ name, age, email }),
+            })
+            .then(response => response.json())
+            .then(data => {
+                alert('Student added successfully!');
+                fetchStudents();
+            })
+            .catch(error => console.error('Error adding student:', error));
+        });
+
+        // Update a student
+        document.getElementById("updateStudentForm").addEventListener("submit", function(event) {
+            event.preventDefault();
+            const id = document.getElementById("updateId").value;
+            const name = document.getElementById("updateName").value;
+            const age = document.getElementById("updateAge").value;
+            const email = document.getElementById("updateEmail").value;
+
+            fetch(`http://localhost:8080/student/${id}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ name, age, email }),
+            })
+            .then(response => response.json())
+            .then(data => {
+                alert('Student updated successfully!');
+                fetchStudents();
+            })
+            .catch(error => console.error('Error updating student:', error));
+        });
+
+        // Delete a student
+        document.getElementById("deleteStudentForm").addEventListener("submit", function(event) {
+            event.preventDefault();
+            const id = document.getElementById("deleteId").value;
+
+            fetch(`http://localhost:8080/student/${id}`, {
+                method: 'DELETE',
+            })
+            .then(response => response.json())
+            .then(data => {
+                alert('Student deleted successfully!');
+                fetchStudents();
+            })
+            .catch(error => console.error('Error deleting student:', error));
+        });
+
+        // Fetch students when the page loads
+        fetchStudents();
+    </script>
+</body>
+</html>
