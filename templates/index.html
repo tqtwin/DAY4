@@ -88,7 +88,7 @@
         document.getElementById("addStudentForm").addEventListener("submit", function(event) {
             event.preventDefault();
             const name = document.getElementById("name").value;
-            const age = document.getElementById("age").value;
+           const age = parseInt(document.getElementById("age").value, 10);
             const email = document.getElementById("email").value;
 
             fetch('http://localhost:8080/student', {
@@ -111,7 +111,7 @@
             event.preventDefault();
             const id = document.getElementById("updateId").value;
             const name = document.getElementById("updateName").value;
-            const age = document.getElementById("updateAge").value;
+              const age = parseInt(document.getElementById("updateAge").value, 10);
             const email = document.getElementById("updateEmail").value;
 
             fetch(`http://localhost:8080/student/${id}`, {
